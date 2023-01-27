@@ -14,7 +14,7 @@ Run:
 java -jar target/benchmarks.jar -rf json
 ```
 
-The results are stored in a file called jmh-result.json. You can visualize them online on https://jmh.morethan.io/.
+The results are stored in a file called [jmh-result.json](https://github.com/LucasKonrath/KMapper-Perfomance-Tests/blob/main/jmh-result.json). You can visualize them online on https://jmh.morethan.io/.
 
 Also see commands.txt for more pre-configured commands.
 
