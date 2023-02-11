@@ -1,4 +1,4 @@
-package org.kmapper.cache
+package org.kmapper;
 
 
 import java.util.concurrent.ConcurrentHashMap
@@ -11,10 +11,7 @@ interface Cache {
 }
 
 class TimedCache() : Cache {
-    /**
-     * 15 minutes cache.
-     */
-    private var cacheTimeValidityInMillis: Long = 900000
+    private var cacheTimeValidityInMillis: Long = 1000000
     private val hashMap = ConcurrentHashMap<String, TimedEntry>()
 
     companion object {

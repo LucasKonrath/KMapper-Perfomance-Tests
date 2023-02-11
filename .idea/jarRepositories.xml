@@ -31,5 +31,10 @@
       <option name="name" value="libs-snapshot" />
       <option name="url" value="https://artifactory.tlcinternal.com/artifactory/LC_CENTRAL" />
     </remote-repository>
+    <remote-repository>
+      <option name="id" value="ktsrunner" />
+      <option name="name" value="kts-runner" />
+      <option name="url" value="https://artifactory.tlcinternal.com/artifactory/LC_CENTRAL" />
+    </remote-repository>
   </component>
 </project>
