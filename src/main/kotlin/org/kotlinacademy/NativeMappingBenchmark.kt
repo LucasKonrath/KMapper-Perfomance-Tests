@@ -2,10 +2,11 @@ package org.kotlinacademy
 
 import org.kmapper.KMappedField
 import org.kmapper.KMapper
-import org.kmapper.testClasses.ComplexClass
-import org.kmapper.testClasses.ComplexDestinationClass
-import org.kmapper.testClasses.DestinationClass
-import org.kmapper.testClasses.OriginClass
+import org.kmapper.converters.Converters
+import org.kmapper.generated.ComplexClassToComplexDestinationClassKMapper
+import org.kmapper.generated.OriginClassToDestinationClassKMapper
+import org.kmapper.generated.OriginalAnnotatedClassToEmptyConstructorClassKMapper
+import org.kmapper.testClasses.*
 import org.openjdk.jmh.annotations.*
 import org.openjdk.jmh.annotations.Scope
 import java.util.concurrent.*
@@ -27,21 +28,25 @@ open class NativeMappingBenchmark {
         10, "10", 10.0, 10, 10, 10, "10", 10.0, 10, 10,
         10, "10", 10.0, 10, 10, 10, "10", 10.0, 10, 10)
 
+    val converters = Converters();
+
+    val originalAnnotatedClass = OriginalAnnotatedClass("10", 10)
+
     @Benchmark
     @BenchmarkMode(Mode.All)
-    fun mappingSimpleClass() : DestinationClass {
-        return DestinationClass(
-            from.int,
-            from.string,
-            from.double,
-            from.short,
-            from.byte
-        )
+    fun mappingSimpleEmptyConstructorClass() : EmptyConstructorClass {
+        return OriginalAnnotatedClassToEmptyConstructorClassKMapper(originalAnnotatedClass, converters).map()
     }
 
     @Benchmark
     @BenchmarkMode(Mode.All)
-    fun mappingComplexClass(): ComplexDestinationClass {
-        return ComplexDestinationClass(fromComplexClass)
+    fun mappingSimpleDataClass() : DestinationClass {
+        return OriginClassToDestinationClassKMapper(from, converters).map()
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.All)
+    fun mappingComplexDataClass(): ComplexDestinationClass {
+        return ComplexClassToComplexDestinationClassKMapper(fromComplexClass, converters).map()
     }
 }

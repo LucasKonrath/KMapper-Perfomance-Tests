@@ -13,7 +13,6 @@ import kotlin.reflect.full.*
 
 class KMapper {
 
-    val converters = Converters()
     private val cache = TimedCache()
 
     /**
@@ -24,14 +23,15 @@ class KMapper {
      * the object with the values from the original object. The remaining member properties will be set via Reflection.
      *
      * For inserting each value on the destination class, a Converter is used. Converters are used to convert between
-     * two data types, and they are registered on the Converters.kt file. If you wish to expand the current converters,
-     * or create custom ones, you can add them on that file.
+     * two data types, and they are registered on the Converters class. If you wish to use custom converters, you can
+     * pass in an instance of Converters() with the custom converters you defined as an optional third parameter for
+     * the mapping function.
      */
-    fun <T : Any> map(from: Any, toCls: KClass<T>): T {
+    fun <T : Any> map(from: Any, toCls: KClass<T>, converters:Converters = Converters()): T {
 
         try{
             val constructor: KFunction<*>? = cache.get(getClaszName(from, toCls)) as KFunction<*>?
-            val instance = constructor!!.call(from)
+            val instance = constructor!!.call(from, converters)
             val mapper = instance as IKMapper
             return mapper.map() as T
         } catch (e: Exception){
@@ -50,12 +50,12 @@ class KMapper {
 
         val constructor = FunSpec.constructorBuilder()
         constructor.addParameter("from", from::class)
+        constructor.addParameter("converters", Converters::class)
 
         from::class.declaredMemberProperties
             .forEach { m ->
                 val ann: KMappedField? =
-                    m.findAnnotations<KMappedField>()
-                        .firstOrNull { true }
+                    m.findAnnotation<KMappedField>()
                 val nameToPut = ann?.destinationField ?: m.name
                 mapOfProps[nameToPut] = m.getter.call(from)
                 nameMappings[nameToPut] = m.name
@@ -69,7 +69,10 @@ class KMapper {
             constructClass
                 .addStatement("return %T()", toCls)
         } else {
-            val accessors = toCls.primaryConstructor?.parameters?.map { param -> "from." + nameMappings[param.name] }
+            val accessors = toCls.primaryConstructor?.parameters?.map { param ->
+                val fieldName = "from." + nameMappings[param.name]
+                "convert($fieldName, $fieldName!!::class, ${param.type}::class) as ${param.type}"
+            }
             constructClass.addStatement("return %L( %L )", toCls.simpleName!!, accessors!!.joinToString(", "))
         }
 
@@ -79,13 +82,18 @@ class KMapper {
                 .initializer("from")
                 .addModifiers(KModifier.PRIVATE)
                 .build())
+            .addProperty(PropertySpec.builder(
+                "converters", Converters::class)
+                .initializer("converters")
+                .addModifiers(KModifier.PRIVATE)
+                .build())
 
         clasz.addFunction(constructClass.build())
 
         val mappingMethod = FunSpec.builder("map")
-                .returns(toCls)
+            .returns(toCls)
             .addModifiers(KModifier.OVERRIDE)
-                .addStatement("val to = constructClass()")
+            .addStatement("val to = constructClass()")
 
 
         toCls.declaredMemberProperties.forEach { m ->
@@ -105,7 +113,7 @@ class KMapper {
             .addParameter("from", Any::class)
             .addParameter("typeClassifier", KClassifier::class)
             .addParameter("toClassifier", KClassifier::class)
-            .addStatement("return %T().getConverter(typeClassifier, toClassifier)?.invoke(from)!!", Converters::class)
+            .addStatement("return converters.getConverter(typeClassifier, toClassifier)?.invoke(from)!!")
 
         clasz.addFunction(convertFunction.build())
         fileSpec.addType(clasz.build())
@@ -116,13 +124,14 @@ class KMapper {
         setIdeaIoUseFallback()
         val engineManager = ScriptEngineManager(classLoader)
         val ktsEngine: ScriptEngine = engineManager.getEngineByExtension("kts")
-         val compiledClasz = ktsEngine.eval(fileSpec.build().toString() + "\n" + getClaszName(from, toCls) + "::class")
+        val compiledClasz = ktsEngine.eval(fileSpec.build().toString() + "\n" + getClaszName(from, toCls) + "::class")
 
 
         /** Get the constructor for the compiled class, instantiate it and call the map method. **/
         val construc = (compiledClasz as KClass<*>).primaryConstructor
+
         cache.put(getClaszName(from, toCls), construc!!)
-        val instance = construc!!.call(from)
+        val instance = construc!!.call(from, converters)
         val mapper = instance as IKMapper
         return mapper.map() as T
     }
